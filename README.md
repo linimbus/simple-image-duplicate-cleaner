@@ -1,1 +1,1 @@
-# simple-image-Image-duplicate-cleaner
+# simple-image-duplicate-cleaner
