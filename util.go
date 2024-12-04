@@ -1,14 +1,10 @@
 package main
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
-	"time"
 
 	"github.com/astaxie/beego/logs"
 )
@@ -33,13 +29,8 @@ func CapSignal(proc func()) {
 	}()
 }
 
-type FileInfo struct {
-	file      string
-	timestamp time.Time
-}
-
-func ReadFileList(dir string) ([]FileInfo, error) {
-	output := make([]FileInfo, 0)
+func ReadFileList(dir string) ([]string, error) {
+	output := make([]string, 0)
 
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -50,7 +41,7 @@ func ReadFileList(dir string) ([]FileInfo, error) {
 			if err != nil {
 				return err
 			}
-			output = append(output, FileInfo{file: absPath, timestamp: info.ModTime()})
+			output = append(output, absPath)
 		}
 		return nil
 	})
@@ -60,24 +51,4 @@ func ReadFileList(dir string) ([]FileInfo, error) {
 	}
 
 	return output, nil
-}
-
-func ReadFileHMAC(filePath string) (string, error) {
-	fd, err := os.Open(filePath)
-	if err != nil {
-		logs.Error("%s open fail, %s", filePath, err.Error())
-		return "", err
-	}
-	defer fd.Close()
-
-	hash := sha256.New()
-	if _, err := io.Copy(hash, fd); err != nil {
-		logs.Error("%s read fail, %s", filePath, err.Error())
-		return "", err
-	}
-
-	hashInBytes := hash.Sum(nil)
-	hashString := hex.EncodeToString(hashInBytes)
-
-	return hashString, nil
 }

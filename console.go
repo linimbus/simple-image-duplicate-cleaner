@@ -11,13 +11,15 @@ import (
 
 func ConsoleWidget() []Widget {
 	var searchDir *walk.LineEdit
+	var pngCheck, jpegCheck, bmpCheck, heicCheck *walk.CheckBox
+
 	return []Widget{
+		Label{
+			Text: "Search Directory: ",
+		},
 		Composite{
 			Layout: HBox{MarginsZero: true},
 			Children: []Widget{
-				Label{
-					Text: "Search Directory: ",
-				},
 				LineEdit{
 					AssignTo: &searchDir,
 					Text:     ConfigGet().SearchDir,
@@ -42,8 +44,8 @@ func ConsoleWidget() []Widget {
 					},
 				},
 				PushButton{
-					MaxSize: Size{Width: 20},
-					Text:    "...",
+					MaxSize: Size{Width: 30},
+					Text:    " ... ",
 					OnClicked: func() {
 						dlgDir := new(walk.FileDialog)
 						dlgDir.FilePath = ConfigGet().SearchDir
@@ -64,27 +66,43 @@ func ConsoleWidget() []Widget {
 				},
 			},
 		},
+		Label{
+			Text: "Search Options: ",
+		},
 		Composite{
 			Layout: HBox{MarginsZero: true},
 			Children: []Widget{
-				Label{
-					Text: "Search Options: ",
+				CheckBox{
+					AssignTo: &pngCheck,
+					Text:     IMG_PNG,
+					Checked:  SelectGet(IMG_PNG),
+					OnCheckedChanged: func() {
+						SelectCheck(IMG_PNG, pngCheck.Checked())
+					},
 				},
 				CheckBox{
-					Text:    "PNG",
-					Checked: true,
+					AssignTo: &jpegCheck,
+					Text:     IMG_JPEG,
+					Checked:  SelectGet(IMG_JPEG),
+					OnCheckedChanged: func() {
+						SelectCheck(IMG_JPEG, jpegCheck.Checked())
+					},
 				},
 				CheckBox{
-					Text:    "JPEG",
-					Checked: true,
+					AssignTo: &bmpCheck,
+					Text:     IMG_BMP,
+					Checked:  SelectGet(IMG_BMP),
+					OnCheckedChanged: func() {
+						SelectCheck(IMG_BMP, bmpCheck.Checked())
+					},
 				},
 				CheckBox{
-					Text:    "BMP",
-					Checked: true,
-				},
-				CheckBox{
-					Text:    "HEIC",
-					Checked: true,
+					AssignTo: &heicCheck,
+					Text:     IMG_HEIC,
+					Checked:  SelectGet(IMG_HEIC),
+					OnCheckedChanged: func() {
+						SelectCheck(IMG_HEIC, heicCheck.Checked())
+					},
 				},
 			},
 		},

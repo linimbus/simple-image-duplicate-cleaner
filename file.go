@@ -33,7 +33,7 @@ func appDataDir() string {
 	if datadir == "" {
 		datadir = ".\\"
 	} else {
-		datadir = fmt.Sprintf("%s\\DuplicateFileCleaner", datadir)
+		datadir = fmt.Sprintf("%s\\SimpleImageDuplicateCleaner", datadir)
 	}
 	return datadir
 }

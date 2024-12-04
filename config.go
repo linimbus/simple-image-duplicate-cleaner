@@ -10,13 +10,17 @@ import (
 )
 
 type Config struct {
-	SearchDir      string `json:"SearchDir"`
-	DestinationDir string `json:"DestinationDir"`
+	SearchDir  string          `json:"SearchDir"`
+	SelectList map[string]bool `json:"SelectList"`
+	Similarity float64         `json:"Similarity"`
 }
 
 var configCache = Config{
-	SearchDir:      "",
-	DestinationDir: "",
+	SearchDir: "",
+	SelectList: map[string]bool{
+		IMG_PNG: true, IMG_JPEG: true, IMG_BMP: true, IMG_HEIC: true,
+	},
+	Similarity: 90.0,
 }
 
 var configFilePath string
@@ -43,8 +47,16 @@ func SearchDirSave(path string) error {
 	return configSyncToFile()
 }
 
-func DestinationDirDirSave(path string) error {
-	configCache.DestinationDir = path
+func SelectGet(key string) bool {
+	flag, b := configCache.SelectList[key]
+	if b {
+		return flag
+	}
+	return false
+}
+
+func SelectCheck(key string, flag bool) error {
+	configCache.SelectList[key] = flag
 	return configSyncToFile()
 }
 
@@ -62,12 +74,16 @@ func ConfigInit() error {
 
 	value, err := os.ReadFile(configFilePath)
 	if err != nil {
+		configSyncToFile()
+
 		logs.Error("read config file from app data dir fail, %s", err.Error())
 		return err
 	}
 
 	err = json.Unmarshal(value, &configCache)
 	if err != nil {
+		configSyncToFile()
+
 		logs.Error("json unmarshal config fail, %s", err.Error())
 		return err
 	}

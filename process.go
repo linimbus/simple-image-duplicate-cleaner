@@ -13,8 +13,8 @@ func ProcessWidget() []Widget {
 			AssignTo: &processBar,
 			MaxValue: 1000,
 			MinValue: 0,
-			MinSize:  Size{Height: 5},
-			MaxSize:  Size{Height: 5},
+			MinSize:  Size{Height: 3},
+			MaxSize:  Size{Height: 3},
 		},
 	}
 }

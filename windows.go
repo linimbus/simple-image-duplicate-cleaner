@@ -31,7 +31,7 @@ func MenuBarInit() []MenuItem {
 func mainWindows() {
 	CapSignal(CloseWindows)
 	cnt, err := MainWindow{
-		Title:     "Duplicate File Cleaner " + VersionGet(),
+		Title:     "Simple Image Duplicate Cleaner " + VersionGet(),
 		Icon:      ICON_Main,
 		AssignTo:  &mainWindow,
 		MinSize:   Size{Width: mainWindowWidth, Height: mainWindowHeight},
@@ -40,16 +40,16 @@ func mainWindows() {
 		MenuItems: MenuBarInit(),
 		Children: []Widget{
 			Composite{
-				Layout:   VBox{Margins: Margins{Top: 0, Bottom: 0, Left: 10, Right: 10}},
+				Layout:   Grid{Columns: 2, Margins: Margins{Top: 0, Bottom: 0, Left: 10, Right: 10}},
 				Children: ConsoleWidget(),
-			},
-			Composite{
-				Layout:   VBox{Margins: Margins{Top: 0, Bottom: 0, Left: 10, Right: 10}},
-				Children: ProcessWidget(),
 			},
 			Composite{
 				Layout:   VBox{},
 				Children: TableWidget(),
+			},
+			Composite{
+				Layout:   VBox{Margins: Margins{Top: 0, Bottom: 0, Left: 10, Right: 10}},
+				Children: ProcessWidget(),
 			},
 			Composite{
 				Layout:   HBox{},

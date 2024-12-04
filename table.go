@@ -6,6 +6,7 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/astaxie/beego/logs"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
 )
@@ -24,7 +25,7 @@ type FileItem struct {
 	Size        ImageSize
 	SimilarFile string
 	SimilarSize ImageSize
-	Similarity  int
+	Similarity  float64
 	Status      string
 
 	checked bool
@@ -59,7 +60,7 @@ func (n *FileModel) Value(row, col int) interface{} {
 	case 4:
 		return fmt.Sprintf("%d*%d", item.SimilarSize.Width, item.SimilarSize.Height)
 	case 5:
-		return fmt.Sprintf("%d%%", item.Similarity)
+		return fmt.Sprintf("%.2f%%", item.Similarity)
 	case 6:
 		return item.Status
 	}
@@ -107,127 +108,27 @@ func (m *FileModel) Sort(col int, order walk.SortOrder) error {
 }
 
 const (
-	STATUS_DONE = "found"
-	STATUS_FAIL = "read fail"
+	STATUS_DONE      = "found"
+	STATUS_READ_FAIL = "read fail"
+	STATUS_HASH_FAIL = "hash fail"
 )
 
-var fileDupTable *FileModel
 var tableView *walk.TableView
+var fileSimilarTable *FileModel
 
 func init() {
-	fileDupTable = new(FileModel)
-	fileDupTable.items = make([]*FileItem, 0)
-}
-
-func MoveFileActive(isNew bool) {
-	lt := fileDupTable
-
-	outputDir := ConfigGet().DestinationDir
-
-	lt.Lock()
-	defer lt.Unlock()
-
-	total := len(lt.items)
-	if total == 0 {
-		return
-	}
-
-	stat, err := os.Stat(outputDir)
-	if err != nil {
-		if err == os.ErrNotExist {
-			if err = os.MkdirAll(outputDir, 0664); err != nil {
-				ErrorBoxAction(mainWindow, fmt.Sprintf("Create destination directory fail, %s", err.Error()))
-				return
-			}
-		} else {
-			ErrorBoxAction(mainWindow, fmt.Sprintf("Access destination directory fail, %s", err.Error()))
-			return
-		}
-	}
-
-	if !stat.IsDir() {
-		ErrorBoxAction(mainWindow, "The destination directory is not directory")
-		return
-	}
-
-	// var moveFile string
-	// for i := 0; i < total; i++ {
-	// 	item := lt.items[0]
-	// 	if isNew {
-	// 		if item.FileTime.Compare(item.MatchTime) > 0 {
-	// 			moveFile = item.File
-	// 		} else {
-	// 			moveFile = item.MatchFile
-	// 		}
-	// 	} else {
-	// 		if item.FileTime.Compare(item.MatchTime) < 0 {
-	// 			moveFile = item.File
-	// 		} else {
-	// 			moveFile = item.MatchFile
-	// 		}
-	// 	}
-	// 	err = os.Rename(moveFile,
-	// 		filepath.Join(outputDir,
-	// 			fmt.Sprintf("%s%s", time.Now().Format("2006-01-02T15-04-05.000000"), filepath.Ext(moveFile))))
-	// 	if err != nil {
-	// 		logs.Error(err.Error())
-	// 	}
-
-	// 	lt.items = lt.items[1:]
-	// 	lt.PublishRowsReset()
-	// 	lt.Sort(lt.sortColumn, lt.sortOrder)
-
-	// 	ProcessUpdate(i * 1000 / total)
-	// }
-}
-
-func DeleteFileActive(isNew bool) {
-	lt := fileDupTable
-
-	lt.Lock()
-	defer lt.Unlock()
-
-	total := len(lt.items)
-	if total == 0 {
-		return
-	}
-
-	// var delFile string
-
-	// for i := 0; i < total; i++ {
-	// 	item := lt.items[0]
-	// 	if isNew {
-	// 		if item.FileTime.Compare(item.MatchTime) > 0 {
-	// 			delFile = item.File
-	// 		} else {
-	// 			delFile = item.MatchFile
-	// 		}
-	// 	} else {
-	// 		if item.FileTime.Compare(item.MatchTime) < 0 {
-	// 			delFile = item.File
-	// 		} else {
-	// 			delFile = item.MatchFile
-	// 		}
-	// 	}
-
-	// 	err := os.Remove(delFile)
-	// 	if err != nil {
-	// 		logs.Error(err.Error())
-	// 	}
-
-	// 	lt.items = lt.items[1:]
-	// 	lt.PublishRowsReset()
-	// 	lt.Sort(lt.sortColumn, lt.sortOrder)
-
-	// 	ProcessUpdate(i * 1000 / total)
-	// }
+	fileSimilarTable = new(FileModel)
+	fileSimilarTable.items = make([]*FileItem, 0)
 }
 
 func SearchFileActive() {
-	lt := fileDupTable
+	lt := fileSimilarTable
 
 	lt.Lock()
 	defer lt.Unlock()
+
+	tableView.SetEnabled(false)
+	defer tableView.SetEnabled(true)
 
 	if ConfigGet().SearchDir == "" {
 		ErrorBoxAction(mainWindow, "Please set the correct search directory!")
@@ -249,44 +150,67 @@ func SearchFileActive() {
 	lt.PublishRowsReset()
 	lt.Sort(lt.sortColumn, lt.sortOrder)
 
-	// fileList, err := ReadFileList(ConfigGet().SearchDir)
-	// if err != nil {
-	// 	ErrorBoxAction(mainWindow, fmt.Sprintf("Read the %s search directory fail, %s", ConfigGet().SearchDir, err.Error()))
-	// 	return
-	// }
+	fileList, err := ReadFileList(ConfigGet().SearchDir)
+	if err != nil {
+		ErrorBoxAction(mainWindow, fmt.Sprintf("Read the %s search directory fail, %s", ConfigGet().SearchDir, err.Error()))
+		return
+	}
 
-	// fileHmacList := make(map[string]FileInfo, 1024)
+	fileHashList := make([]*ImageInfo, 0)
 
-	// i := 0
-	// for process, file := range fileList {
-	// 	hmac, err := ReadFileHMAC(file.file)
-	// 	if err != nil {
-	// 		logs.Error(err.Error())
-	// 		lt.items = append(lt.items, &FileItem{Index: i, File: file.file, FileTime: file.timestamp, Status: STATUS_FAIL})
-	// 		i++
-	// 	} else {
-	// 		matchFile, b := fileHmacList[hmac]
-	// 		if b {
-	// 			logs.Info("find the duplicate file, %s <-> %s", file.file, matchFile.file)
-	// 			lt.items = append(lt.items, &FileItem{
-	// 				Index:     i,
-	// 				File:      file.file,
-	// 				FileTime:  file.timestamp,
-	// 				MatchFile: matchFile.file,
-	// 				MatchTime: matchFile.timestamp,
-	// 				HMAC:      hmac,
-	// 				Status:    STATUS_DONE})
-	// 			i++
-	// 		} else {
-	// 			fileHmacList[hmac] = file
-	// 		}
-	// 	}
+	i := 0
+	for index, file := range fileList {
+		hashNew, err := ImageOpen(file, ConfigGet().SelectList)
+		if err != nil {
+			logs.Info(err.Error())
+			continue
+		}
 
-	// 	lt.PublishRowsReset()
-	// 	lt.Sort(lt.sortColumn, lt.sortOrder)
+		for _, hashOld := range fileHashList {
+			similarity, err := ImageSimilarity(hashOld.hash, hashNew.hash)
+			if err != nil {
+				logs.Info(err.Error())
+				continue
+			}
 
-	// 	ProcessUpdate(process * 1000 / len(fileList))
-	// }
+			if similarity >= ConfigGet().Similarity {
+				logs.Info("find the similarity %.2f%% image file, %s <-> %s", similarity, hashOld.file, hashNew.file)
+				lt.items = append(lt.items, &FileItem{
+					Index:       i,
+					File:        hashOld.file,
+					Size:        hashOld.size,
+					SimilarFile: hashNew.file,
+					SimilarSize: hashNew.size,
+					Similarity:  similarity,
+					Status:      STATUS_DONE})
+				i++
+
+				break
+			}
+		}
+
+		fileHashList = append(fileHashList, hashNew)
+
+		lt.PublishRowsReset()
+		lt.Sort(lt.sortColumn, lt.sortOrder)
+
+		ProcessUpdate(index * 1000 / len(fileList))
+	}
+}
+
+func TableItemShow() {
+	lt := fileSimilarTable
+
+	lt.Lock()
+	defer lt.Unlock()
+
+	index := tableView.CurrentIndex()
+	if index < len(lt.items) {
+		item := lt.items[index]
+
+		go OpenBrowserWeb(item.File)
+		go OpenBrowserWeb(item.SimilarFile)
+	}
 }
 
 func TableWidget() []Widget {
@@ -300,6 +224,7 @@ func TableWidget() []Widget {
 			ColumnsOrderable: true,
 			CheckBoxes:       false,
 			OnItemActivated: func() {
+				TableItemShow()
 			},
 			Columns: []TableViewColumn{
 				{Title: "No", Width: 30},
@@ -317,7 +242,7 @@ func TableWidget() []Widget {
 					style.BackgroundColor = walk.RGB(220, 220, 220)
 				}
 			},
-			Model: fileDupTable,
+			Model: fileSimilarTable,
 		},
 	}
 }
