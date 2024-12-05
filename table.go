@@ -60,7 +60,7 @@ func (n *FileModel) Value(row, col int) interface{} {
 	case 4:
 		return fmt.Sprintf("%d*%d", item.SimilarSize.Width, item.SimilarSize.Height)
 	case 5:
-		return fmt.Sprintf("%.2f%%", item.Similarity)
+		return ImageSimilarityName(item.Similarity)
 	case 6:
 		return item.Status
 	}
@@ -146,6 +146,7 @@ func SearchFileActive() {
 		return
 	}
 
+	tableView.SetCurrentIndex(-1)
 	lt.items = make([]*FileItem, 0)
 	lt.PublishRowsReset()
 	lt.Sort(lt.sortColumn, lt.sortOrder)
@@ -166,6 +167,9 @@ func SearchFileActive() {
 			continue
 		}
 
+		var hashBest *ImageInfo
+		maxSimilarity := 0.0
+
 		for _, hashOld := range fileHashList {
 			similarity, err := ImageSimilarity(hashOld.hash, hashNew.hash)
 			if err != nil {
@@ -173,26 +177,29 @@ func SearchFileActive() {
 				continue
 			}
 
-			if similarity >= ConfigGet().Similarity {
-				logs.Info("find the similarity %.2f%% image file, %s <-> %s", similarity, hashOld.file, hashNew.file)
-				lt.items = append(lt.items, &FileItem{
-					Index:       i,
-					File:        hashOld.file,
-					Size:        hashOld.size,
-					SimilarFile: hashNew.file,
-					SimilarSize: hashNew.size,
-					Similarity:  similarity,
-					Status:      STATUS_DONE})
-				i++
-
-				break
+			if maxSimilarity < similarity {
+				maxSimilarity = similarity
+				hashBest = hashOld
 			}
 		}
 
-		fileHashList = append(fileHashList, hashNew)
+		if hashBest != nil && ImageSimilarityCheck(ConfigGet().Similarity, maxSimilarity) {
+			logs.Info("find the max similarity %.2f%% image file, %s <-> %s", maxSimilarity, hashBest.file, hashNew.file)
+			lt.items = append(lt.items, &FileItem{
+				Index:       i,
+				File:        hashNew.file,
+				Size:        hashNew.size,
+				SimilarFile: hashBest.file,
+				SimilarSize: hashBest.size,
+				Similarity:  maxSimilarity,
+				Status:      STATUS_DONE})
+			i++
 
-		lt.PublishRowsReset()
-		lt.Sort(lt.sortColumn, lt.sortOrder)
+			lt.PublishRowsReset()
+			lt.Sort(lt.sortColumn, lt.sortOrder)
+		}
+
+		fileHashList = append(fileHashList, hashNew)
 
 		ProcessUpdate(index * 1000 / len(fileList))
 	}
@@ -201,16 +208,13 @@ func SearchFileActive() {
 func TableItemShow() {
 	lt := fileSimilarTable
 
-	lt.Lock()
-	defer lt.Unlock()
-
 	index := tableView.CurrentIndex()
 	if index < len(lt.items) {
 		item := lt.items[index]
-
 		go OpenBrowserWeb(item.File)
 		go OpenBrowserWeb(item.SimilarFile)
 	}
+	tableView.SetCurrentIndex(-1)
 }
 
 func TableWidget() []Widget {

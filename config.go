@@ -9,10 +9,23 @@ import (
 	"github.com/astaxie/beego/logs"
 )
 
+const (
+	IMG_PNG  string = "PNG"
+	IMG_JPEG string = "JPEG"
+	IMG_BMP  string = "BMP"
+	IMG_HEIC string = "HEIC"
+)
+
+const (
+	SIM_LOW    string = "Low"
+	SIM_MIDDLE string = "Middle"
+	SIM_HIGH   string = "High"
+)
+
 type Config struct {
 	SearchDir  string          `json:"SearchDir"`
 	SelectList map[string]bool `json:"SelectList"`
-	Similarity float64         `json:"Similarity"`
+	Similarity string          `json:"Similarity"`
 }
 
 var configCache = Config{
@@ -20,7 +33,7 @@ var configCache = Config{
 	SelectList: map[string]bool{
 		IMG_PNG: true, IMG_JPEG: true, IMG_BMP: true, IMG_HEIC: true,
 	},
-	Similarity: 90.0,
+	Similarity: SIM_MIDDLE,
 }
 
 var configFilePath string

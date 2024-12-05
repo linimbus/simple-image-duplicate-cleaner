@@ -15,13 +15,6 @@ import (
 	"golang.org/x/image/bmp"
 )
 
-const (
-	IMG_PNG  string = "PNG"
-	IMG_JPEG string = "JPEG"
-	IMG_BMP  string = "BMP"
-	IMG_HEIC string = "HEIC"
-)
-
 type ImageInfo struct {
 	hash *goimagehash.ImageHash
 	size ImageSize
@@ -39,6 +32,29 @@ func init() {
 	imageFormatList_[".bmp"] = IMG_BMP
 	imageFormatList_[".heic"] = IMG_HEIC
 	imageFormatList_[".heif"] = IMG_HEIC
+}
+
+func ImageSimilarityCheck(cfg string, value float64) bool {
+	switch cfg {
+	case SIM_HIGH:
+		return value >= 98.0
+	case SIM_MIDDLE:
+		return value >= 95.0
+	case SIM_LOW:
+		return value >= 90.0
+	}
+	return false
+}
+
+func ImageSimilarityName(value float64) string {
+	if value >= 100.0 {
+		return "Very High Similar"
+	} else if value >= 98.0 {
+		return "High Similar"
+	} else if value >= 95.0 {
+		return "Middle Similar"
+	}
+	return "Low Similar"
 }
 
 func ImageSimilarity(hash1, hash2 *goimagehash.ImageHash) (float64, error) {
